@@ -6,6 +6,7 @@ class ImageProcessError(Exception):
 
 class ImageSizeError(ImageProcessError):
     def __init__(self):
+        super.__init__()
         self.message = '图片长宽不一致'
 
 class ImageLoadError:
@@ -16,17 +17,14 @@ def resize(id: str, level: int, input_path: str, allow_morphism: bool = False) -
     try:
         img = Image.open(input_path)
     except:
-        raise ImageLoadError
+        raise ImageLoadError(input_path)
     
     resolution = img.size
     if resolution[0] != resolution[1] and ~allow_morphism:
         raise ImageSizeError
 
-    # 对应 id_level, id_level_b, id_level_s, id_level_t
-    sizes = {300:'', 676:'_b', 108:'_b', 128:'_t'}
-    imgs = []
-    
-    # resize
-    for size in sizes:
-       imgs.append( img.resize((size, size), Image.BICUBIC) )
+    # 不同分辨率
+    sizes = [300, 676, 108, 128]
+       
+    return [ img.resize((size, size), Image.BICUBIC) for size in sizes ]
         
