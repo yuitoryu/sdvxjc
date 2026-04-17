@@ -97,6 +97,7 @@ def analyze_data(unpacked: Path) -> None:
         write_index(infos, index_dict, folder_id)
 
     json.dump(index_dict, fp, indent=4, ensure_ascii=False, sort_keys=True)
+    fp.close()
     
 @beartype
 def extract_info(names: list[str]) -> list[tuple[str, str]]:
@@ -122,7 +123,7 @@ def write_index(infos: list[tuple[str, str]], index_dict : dict[str, dict[str, s
         
 
 @beartype
-def get_image_names(xml_path: str | Path) -> list[str]:
+def get_image_names(xml_path: Path) -> list[str]:
     xml_path = Path(xml_path)
     root = ET.parse(xml_path).getroot()
 
