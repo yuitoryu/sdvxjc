@@ -1,6 +1,6 @@
 from pathlib import Path
 from beartype import beartype
-from .utils import copy_jacket_to_other_difficuly, rename_jacket_pic
+from .utils import copy_jacket_to_other_difficulty
 
 
 class DifficultyNotExistError(Exception):
@@ -43,10 +43,18 @@ class Jacket:
 
 @beartype
 class DiffManager:
-    def __init__(self, song_id: str, jacket_t_loc: dict[str, str], diff_list: list[int], sdvx_path: Path):
+    def __init__(
+        self,
+        song_id: str,
+        jacket_t_loc: dict[str, str],
+        diff_list: list[int],
+        sdvx_path: Path,
+        data_storage: Path = Path('data'),
+    ):
         self.song_id = song_id
         self.jacket_t_loc = jacket_t_loc
         self.sdvx_path = sdvx_path
+        self.data_storage = data_storage
 
         # 1. 所有实际存在的谱面难度
         self.diff_list = sorted(diff_list)
@@ -74,9 +82,16 @@ class DiffManager:
         
         
     def make_independent_jacket(self, jacket: Jacket):
-        copy_jacket_to_other_difficuly(source_diff=jacket.get_pic_id(),
-                                       target_diff=jacket.get_diff_id())
-        jacket.set_pic_id( jacket.get_diff_id() )
+        source_diff = jacket.get_pic_id()
+        target_diff = jacket.get_diff_id()
+        copy_jacket_to_other_difficulty(source_diff=source_diff,
+                                        target_diff=target_diff,
+                                        song_id=self.song_id,
+                                        jacket_t_loc=self.jacket_t_loc,
+                                        sdvx_path=self.sdvx_path,
+                                        data_storage=self.data_storage)
+        self.jacket_t_loc[str(target_diff)] = self.jacket_t_loc[str(source_diff)]
+        jacket.set_pic_id(target_diff)
         
     
     def __repr__(self) -> str:

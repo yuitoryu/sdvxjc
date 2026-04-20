@@ -6,6 +6,7 @@ import xml.etree.ElementTree as ET
 import json
 from tqdm import tqdm
 import shutil
+import copy
 
 @beartype
 def find_jacket_files(graphics_path:  Path) -> list[Path]:
@@ -84,7 +85,7 @@ def get_image_names(xml_path: Path) -> list[str]:
         if (name := image.get("name")) is not None
     ]
 
-@beartype 
+@beartype
 def analyze_all_song_difficulty(sdvx_path: Path, data_storage: Path) -> None:
     music_folder = sdvx_path / 'data/music'
     pattern = re.compile(r"^(?P<id>[0-8][0-9]{3})(?:_[^_]+){2,}$")
@@ -129,18 +130,39 @@ def find_song_folder(music_path: Path, song_id: str) -> Path | None:
         match = pattern.match(fd.name)
         if match:
             return fd
-    
-@beartype
-def copy_jacket_to_other_difficulty(source_diff: int, target_diff: int, song_id: str, jacket_t_loc: dict[str, str], sdvx_path: Path) -> None:
-    copy_regular_jacket_to_other_difficulty(source_diff, target_diff, song_id, sdvx_path)
+
 
 @beartype
-def copy_regular_jacket_to_other_difficulty(source_diff: int, target_diff: int, song_id: str, sdvx_path: Path) -> None:
-    music_path = Path('data/music')
-    song_path = find_song_folder(music_path, song_id)
-    if song_path is None:
-        raise Exception('Music data does not exist')
+def ensure_song_folder_copied(song_id: str, sdvx_path: Path, data_storage: Path) -> Path:
+    source_music_path = sdvx_path / 'data' / 'music'
+    source_song_path = find_song_folder(source_music_path, song_id)
+    if source_song_path is None:
+        raise FileNotFoundError(f'Music data does not exist for song {song_id}')
+
+    copied_music_path = data_storage / 'music'
+    copied_music_path.mkdir(parents=True, exist_ok=True)
+    copied_song_path = copied_music_path / source_song_path.name
+
+    if not copied_song_path.exists():
+        shutil.copytree(source_song_path, copied_song_path)
+
+    return copied_song_path
     
+@beartype
+def copy_jacket_to_other_difficulty(
+    source_diff: int,
+    target_diff: int,
+    song_id: str,
+    jacket_t_loc: dict[str, str],
+    sdvx_path: Path,
+    data_storage: Path = Path('data'),
+) -> None:
+    song_path = ensure_song_folder_copied(song_id, sdvx_path, data_storage)
+    copy_regular_jacket_to_other_difficulty(source_diff, target_diff, song_id, song_path)
+    copy_t_jacket_to_other_difficulty(source_diff, target_diff, song_id, jacket_t_loc)
+
+@beartype
+def copy_regular_jacket_to_other_difficulty(source_diff: int, target_diff: int, song_id: str, song_path: Path) -> None:
     basic_name = f'jk_{song_id}_'
     suffices = ['.png', '_b.png', '_s.png']
     for suffix in suffices:
@@ -150,10 +172,47 @@ def copy_regular_jacket_to_other_difficulty(source_diff: int, target_diff: int, 
     
 @beartype
 def copy_t_jacket_to_other_difficulty(source_diff: int, target_diff: int, song_id: str, jacket_t_loc: dict[str, str]) -> None:    
-    ifs_id = jacket_t_loc[str(target_diff)]
-    root = Path('data/ifs_unpacked')
+    ifs_id = jacket_t_loc[str(source_diff)]
+    root = Path(f'data/ifs_unpacked/s_jacket{ifs_id}_ifs/tex')
     basic_name = f'jk_{song_id}_'
     suffix = '_t.png'
     source_path = root / ( basic_name + str(source_diff) + suffix )
     target_path = root / ( basic_name + str(target_diff) + suffix )
     shutil.copy2(source_path, target_path)
+    
+    xml_path = root / 'texturelist.xml'
+    copy_image_node_in_xml(xml_path, source_path, target_path)
+
+@beartype
+def copy_image_node_in_xml(xml_path: Path, source_path: Path, target_path: Path) -> None:
+    tree = ET.parse(xml_path)
+    root = tree.getroot()
+
+    source_name = source_path.stem
+    target_name = target_path.stem
+
+    source_image = None
+    for image in root.iter("image"):
+        if image.get("name") == source_name:
+            source_image = image
+            break
+
+    if source_image is None:
+        raise ValueError(f"Cannot find image node: {source_name}")
+
+    for image in root.iter("image"):
+        if image.get("name") == target_name:
+            raise ValueError(f"Image node already exists: {target_name}")
+
+    new_image = copy.deepcopy(source_image)
+    new_image.set("name", target_name)
+
+    parent = next((elem for elem in root.iter() if source_image in list(elem)), None)
+    if parent is None:
+        raise ValueError(f"Cannot find parent node for image: {source_name}")
+
+    children = list(parent)
+    idx = children.index(source_image)
+    parent.insert(idx + 1, new_image)
+
+    tree.write(xml_path, encoding="utf-8", xml_declaration=True)
