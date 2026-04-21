@@ -1,4 +1,5 @@
 from PIL import Image
+from pathlib import Path
 
 class ImageProcessError(Exception):
     """图像处理模块的基础异常"""
@@ -14,14 +15,14 @@ class ImageLoadError(ImageProcessError):
         self.message = f'无法加载{path}'
         print(self.message)
 
-def resize(id: str, level: int, input_path: str, allow_morphism: bool = False) -> list[Image.Image]:
+def resize(input_path: Path, allow_morphism: bool = False) -> list[Image.Image]:
     try:
         img = Image.open(input_path)
     except:
         raise ImageLoadError(input_path)
     
     resolution = img.size
-    if resolution[0] != resolution[1] and ~allow_morphism:
+    if resolution[0] != resolution[1] and not allow_morphism:
         raise ImageSizeError
 
     # 不同分辨率

@@ -12,7 +12,7 @@ from tqdm import tqdm
 class FolderStructureError(Exception):
     def __init__(self):
         self.message = '游戏文件夹不正确'
-        super().__init__()
+        super().__init__(self.message)
 
 
 

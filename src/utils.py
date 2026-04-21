@@ -7,6 +7,12 @@ import json
 from tqdm import tqdm
 import shutil
 import copy
+from .imgprocess import resize
+
+class SongNotExistError(Exception):
+    def __init__(self, song_id: str):
+        self.message = f'ID {song_id} does not exist.'
+        super().__init__(self.message)
 
 @beartype
 def find_jacket_files(graphics_path:  Path) -> list[Path]:
@@ -130,7 +136,7 @@ def find_song_folder(music_path: Path, song_id: str) -> Path | None:
         match = pattern.match(fd.name)
         if match:
             return fd
-
+    raise 
 
 @beartype
 def ensure_song_folder_copied(song_id: str, sdvx_path: Path, data_storage: Path) -> Path:
@@ -159,7 +165,13 @@ def copy_jacket_to_other_difficulty(
 ) -> None:
     song_path = ensure_song_folder_copied(song_id, sdvx_path, data_storage)
     copy_regular_jacket_to_other_difficulty(source_diff, target_diff, song_id, song_path)
-    copy_t_jacket_to_other_difficulty(source_diff, target_diff, song_id, jacket_t_loc)
+    copy_t_jacket_to_other_difficulty(
+        source_diff,
+        target_diff,
+        song_id,
+        jacket_t_loc,
+        data_storage,
+    )
 
 @beartype
 def copy_regular_jacket_to_other_difficulty(source_diff: int, target_diff: int, song_id: str, song_path: Path) -> None:
@@ -171,9 +183,15 @@ def copy_regular_jacket_to_other_difficulty(source_diff: int, target_diff: int, 
         shutil.copy2(source_path, target_path)
     
 @beartype
-def copy_t_jacket_to_other_difficulty(source_diff: int, target_diff: int, song_id: str, jacket_t_loc: dict[str, str]) -> None:    
+def copy_t_jacket_to_other_difficulty(
+    source_diff: int,
+    target_diff: int,
+    song_id: str,
+    jacket_t_loc: dict[str, str],
+    data_storage: Path,
+) -> None:
     ifs_id = jacket_t_loc[str(source_diff)]
-    root = Path(f'data/ifs_unpacked/s_jacket{ifs_id}_ifs/tex')
+    root = data_storage / 'ifs_unpacked' / f's_jacket{ifs_id}_ifs' / 'tex'
     basic_name = f'jk_{song_id}_'
     suffix = '_t.png'
     source_path = root / ( basic_name + str(source_diff) + suffix )
@@ -202,7 +220,7 @@ def copy_image_node_in_xml(xml_path: Path, source_path: Path, target_path: Path)
 
     for image in root.iter("image"):
         if image.get("name") == target_name:
-            raise ValueError(f"Image node already exists: {target_name}")
+            return
 
     new_image = copy.deepcopy(source_image)
     new_image.set("name", target_name)
@@ -216,3 +234,28 @@ def copy_image_node_in_xml(xml_path: Path, source_path: Path, target_path: Path)
     parent.insert(idx + 1, new_image)
 
     tree.write(xml_path, encoding="utf-8", xml_declaration=True)
+
+@beartype
+def sdvx_folder_checker(sdvx_path: Path) -> bool:
+    data = sdvx_path / 'data'
+    graphics = data / 'graphics'
+    music = data / 'music'
+    if graphics.exists() and music.exists():
+        return True
+    return False
+
+@beartype
+def replace_jacket(song_id: str, diff: int, pic_path: Path, data_storage: Path, ifs_id: str) -> None:
+    imgs = resize(pic_path, allow_morphism=False) # [regular, big, small, transfer]
+    root_name = f'jk_{song_id}_{diff}'
+    song_folder = cast(Path, find_song_folder(data_storage / 'music', song_id))
+    
+    suffices = ['', '_b', '_s'] # transfer另外处理
+    for i, suffix in enumerate(suffices):
+        name = root_name + suffix + '.png'
+        imgs[i].save( song_folder / name)
+        
+    t_name = root_name + '_t.png'
+    final_path = data_storage / 'ifs_unpacked' / f's_jacket{ifs_id}_ifs' / 'tex' / t_name
+    imgs[-1].save(final_path)
+        
