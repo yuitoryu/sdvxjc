@@ -1,2 +1,4 @@
+beartype
 ifstools
+Pillow
 tqdm

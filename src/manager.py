@@ -11,8 +11,13 @@ class DifficultyNotExistError(Exception):
                          4: 'INF/GRV/HVN/VVD/XCD',
                          5: 'MXM',
                          6: 'ULT'}
-        self.message = f'The difficulty {self.diff_map} does not exist for this song. Only {', '.join([
-            self.diff_map[diff] for diff in diff_list])} {'are' if len(diff_list)>1 else 'is'} available.'
+        available_difficulties = ", ".join(self.diff_map[diff] for diff in diff_list)
+        verb = "are" if len(diff_list) > 1 else "is"
+        difficulty_name = self.diff_map.get(error_diff, str(error_diff))
+        self.message = (
+            f"The difficulty {difficulty_name} does not exist for this song. "
+            f"Only {available_difficulties} {verb} available."
+        )
         print(self.message)
         
 
@@ -55,13 +60,13 @@ class DiffManager:
         self.sdvx_path = sdvx_path
         self.data_storage = data_storage
         
-        with open(data_storage / 'index' / 'jacket.json', 'r') as fp:
+        with open(data_storage / 'index' / 'jacket.json', 'r', encoding="utf-8") as fp:
             self.jacket_t_loc = json.load(fp)[self.song_id]
         
 
         # 1. 所有实际存在的谱面难度
         # self.diff_list = sorted(diff_list)
-        with open(data_storage / 'index' / 'difficulty.json', 'r') as fp:
+        with open(data_storage / 'index' / 'difficulty.json', 'r', encoding="utf-8") as fp:
             self.diff_list = sorted( json.load(fp)[self.song_id] )
 
         # 2. 实际存在独立曲绘的难度
@@ -78,7 +83,7 @@ class DiffManager:
             pos = self.diff_pos[diff]
             self.jacket_usage[pos].set_pic_id(diff)
         
-        print(self)
+        # print(self)
         # 补充沿用其他难度曲绘的难度
         for i, jacket in enumerate(self.jacket_usage):
             if jacket.get_pic_id() == -1:
@@ -99,7 +104,7 @@ class DiffManager:
         jacket.set_pic_id(target_diff)
         
     def replace_jacket(self, diff: int, pic_path: Path):
-        print(type(self.song_id))
+        # print(type(self.song_id))
         replace_jacket(song_id=self.song_id, 
                        diff=diff, 
                        pic_path=pic_path, 

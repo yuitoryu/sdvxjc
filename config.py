@@ -4,3 +4,8 @@ from pathlib import Path
 path = r'E:\2026020300\LAZY_KFC_2026020300\LAZY_KFC\contents'
 #======================================================================
 sdvx_path = Path(path)
+
+#==============================DATA==PATH==============================
+data_root = r'F:\sdvxcover\data'
+#======================================================================
+data_path = Path(data_root)

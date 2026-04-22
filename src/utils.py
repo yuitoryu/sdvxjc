@@ -57,7 +57,7 @@ def analyze_jacket_t_data(data: Path) -> None:
 
     json.dump(index_dict, fp, indent=4, ensure_ascii=False, sort_keys=True)
     fp.close()
-    print(f'Analysis completed. Result has been written to {str(index_file_path / 'jacket.json')}.')
+    print(f"Analysis completed. Result has been written to {index_file_path / 'jacket.json'}.")
     
 @beartype
 def extract_info(names: list[str]) -> list[tuple[str, str]]:
@@ -117,7 +117,7 @@ def analyze_all_song_difficulty(sdvx_path: Path, data_storage: Path) -> None:
     # 写入index.json
     json.dump(record, fp, indent=4, ensure_ascii=False, sort_keys=True)
     fp.close()
-    print(f'Analysis completed. Result has been written to {str(index_file_path / 'difficulty.json')}.')
+    print(f"Analysis completed. Result has been written to {index_file_path / 'difficulty.json'}.")
             
 @beartype            
 def fetch_diff_list(music: Path, id: str, pattern: re.Pattern[str], record: dict[str, list[int]]) -> None:
@@ -161,7 +161,7 @@ def copy_jacket_to_other_difficulty(
     song_id: str,
     jacket_t_loc: dict[str, str],
     sdvx_path: Path,
-    data_storage: Path = Path('data'),
+    data_storage: Path,
 ) -> None:
     song_path = ensure_song_folder_copied(song_id, sdvx_path, data_storage)
     copy_regular_jacket_to_other_difficulty(source_diff, target_diff, song_id, song_path)
@@ -259,3 +259,16 @@ def replace_jacket(song_id: str, diff: int, pic_path: Path, data_storage: Path, 
     final_path = data_storage / 'ifs_unpacked' / f's_jacket{ifs_id}_ifs' / 'tex' / t_name
     imgs[-1].save(final_path)
         
+@beartype
+def craft_id(id: str) -> str:
+    if not id.isnumeric() or int(id) >= 10000 or int(id) <= 0:
+        raise ValueError("Song ID must be a positive integer below 10000!")
+    return "0" * (4 - len(id)) + id
+
+@beartype
+def update_song_folders(sdvx_path: Path, data_path: Path):
+    music_path = sdvx_path / 'data' / 'music'
+    for fd in (data_path / 'music').iterdir():
+        if not fd.is_dir():
+           continue
+        shutil.copytree(fd, music_path / fd.name, dirs_exist_ok=True)
