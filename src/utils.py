@@ -14,6 +14,7 @@ from .jacket_ops import (
 )
 from .song_assets import (
     SongNotExistError,
+    clear_workspace_music,
     copy_regular_jacket_to_other_difficulty,
     ensure_song_folder_copied,
     find_song_folder,
@@ -38,6 +39,7 @@ __all__ = [
     "analyze_all_song_difficulty",
     "analyze_jacket_t_data",
     "assign_new_image_rect",
+    "clear_workspace_music",
     "copy_image_node_in_xml",
     "copy_jacket_to_other_difficulty",
     "copy_regular_jacket_to_other_difficulty",

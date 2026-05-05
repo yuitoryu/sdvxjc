@@ -15,7 +15,7 @@ from .runtime_config import (
     remove_target,
     use_target,
 )
-from .song_assets import update_song_folders
+from .song_assets import clear_workspace_music, update_song_folders
 from .validators import craft_id, sdvx_folder_checker
 
 
@@ -113,6 +113,7 @@ def _handle_apply() -> None:
     ifsprocess.apply_packed_ifs(workspace_path, sdvx_path)
     update_song_folders(sdvx_path, workspace_path)
     clear_dirty_jackets(workspace_path)
+    clear_workspace_music(workspace_path)
 
 
 def _main() -> None:

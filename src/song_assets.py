@@ -23,7 +23,7 @@ def find_song_folder(music_path: Path, song_id: str) -> Path | None:
         match = pattern.match(fd.name)
         if match:
             return fd
-    raise
+    raise SongNotExistError(song_id)
 
 
 @beartype
@@ -66,8 +66,25 @@ def copy_regular_jacket_to_other_difficulty(
 def update_song_folders(sdvx_path: Path, data_path: Path):
     """Copy edited workspace music folders back into the game folder."""
 
+    workspace_music_path = data_path / "music"
+    if not workspace_music_path.exists():
+        return
+
     music_path = sdvx_path / "data" / "music"
-    for fd in (data_path / "music").iterdir():
+    for fd in workspace_music_path.iterdir():
         if not fd.is_dir():
             continue
         shutil.copytree(fd, music_path / fd.name, dirs_exist_ok=True)
+
+
+@beartype
+def clear_workspace_music(data_path: Path) -> None:
+    """Remove all copied music contents from the workspace."""
+
+    workspace_music_path = data_path / "music"
+    workspace_music_path.mkdir(parents=True, exist_ok=True)
+    for child in workspace_music_path.iterdir():
+        if child.is_dir():
+            shutil.rmtree(child)
+        else:
+            child.unlink()
