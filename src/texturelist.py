@@ -1,9 +1,13 @@
+from collections.abc import Collection
 from pathlib import Path
 import copy
 import re
 import xml.etree.ElementTree as ET
 
 from beartype import beartype
+
+
+JACKET_IMAGE_NAME_PATTERN = re.compile(r"^jk_\d{4}_[1-6]_t$")
 
 
 @beartype
@@ -87,6 +91,59 @@ def find_image_by_name(root: ET.Element, image_name: str) -> ET.Element | None:
     return None
 
 
+def find_image_parent(root: ET.Element, target_image: ET.Element) -> ET.Element | None:
+    """Find the direct parent element for one texturelist image node."""
+
+    return next((elem for elem in root.iter() if target_image in list(elem)), None)
+
+
+def image_container(root: ET.Element) -> ET.Element:
+    """Return the XML node that contains texture image children."""
+
+    for elem in root.iter():
+        if any(child.tag == "image" for child in list(elem)):
+            return elem
+    raise ValueError("Cannot find texture image container.")
+
+
+def upsert_image_node(root: ET.Element, source_image: ET.Element) -> None:
+    """Replace or append one image node in a texturelist tree."""
+
+    image_name = source_image.get("name")
+    if image_name is None:
+        raise ValueError("Image node is missing a name attribute.")
+
+    existing_image = find_image_by_name(root, image_name)
+    container = image_container(root)
+    new_image = copy.deepcopy(source_image)
+
+    if existing_image is None:
+        container.append(new_image)
+        return
+
+    parent = find_image_parent(root, existing_image)
+    if parent is None:
+        raise ValueError(f"Cannot find parent node for image: {image_name}")
+
+    children = list(parent)
+    idx = children.index(existing_image)
+    parent.remove(existing_image)
+    parent.insert(idx, new_image)
+
+
+def remove_image_node(root: ET.Element, image_name: str) -> None:
+    """Remove one image node by name when present."""
+
+    image = find_image_by_name(root, image_name)
+    if image is None:
+        return
+
+    parent = find_image_parent(root, image)
+    if parent is None:
+        raise ValueError(f"Cannot find parent node for image: {image_name}")
+    parent.remove(image)
+
+
 def has_duplicate_rect(root: ET.Element, target_image: ET.Element) -> bool:
     """Return whether another image node uses the target node's imgrect."""
 
@@ -138,6 +195,60 @@ def ensure_song_image_rects_unique(xml_path: Path, song_id: str) -> None:
 
     if updated:
         tree.write(xml_path, encoding="utf-8", xml_declaration=True)
+
+
+@beartype
+def merge_texturelists(
+    new_xml_path: Path,
+    old_xml_path: Path,
+    staged_names: Collection[str],
+    imported_names: Collection[str],
+) -> None:
+    """Merge staged transfer-jacket entries from old XML into new XML."""
+
+    tree = ET.parse(new_xml_path)
+    root = tree.getroot()
+    old_root = ET.parse(old_xml_path).getroot()
+
+    expected_names = sorted(set(staged_names))
+    expected_name_set = set(expected_names)
+    imported_name_set = set(imported_names)
+
+    for image_name in expected_names:
+        old_image = find_image_by_name(old_root, image_name)
+        if image_name in imported_name_set:
+            if old_image is None:
+                raise ValueError(f"Cannot find image node: {image_name}")
+            upsert_image_node(root, old_image)
+            continue
+
+        if find_image_by_name(root, image_name) is None:
+            raise ValueError(f"Cannot find image node: {image_name}")
+
+    current_names = [
+        name
+        for image in root.iter("image")
+        if (name := image.get("name")) is not None
+    ]
+    for image_name in current_names:
+        if (
+            JACKET_IMAGE_NAME_PATTERN.fullmatch(image_name)
+            and image_name not in expected_name_set
+        ):
+            remove_image_node(root, image_name)
+
+    for image_name in sorted(imported_name_set):
+        image = find_image_by_name(root, image_name)
+        if image is None:
+            raise ValueError(f"Cannot find image node: {image_name}")
+        if has_duplicate_rect(root, image):
+            assign_new_image_rect(root, image, image)
+
+    for image_name in expected_names:
+        if find_image_by_name(root, image_name) is None:
+            raise ValueError(f"Cannot find image node: {image_name}")
+
+    tree.write(new_xml_path, encoding="utf-8", xml_declaration=True)
 
 
 def assign_new_image_rect(root: ET.Element, source_image: ET.Element, target_image: ET.Element) -> None:

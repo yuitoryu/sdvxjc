@@ -271,6 +271,38 @@ def list_targets() -> tuple[dict[str, TargetRecord], str | None]:
     return state["targets"], state["current_target"]
 
 
+def find_target_name_by_sdvx_path(sdvx_path: Path) -> str | None:
+    """Return the saved target name for one SDVX folder, if any."""
+
+    state = load_state()
+    resolved_sdvx_path = sdvx_path.expanduser().resolve()
+    for target_name, record in state["targets"].items():
+        if Path(record["sdvx_path"]).expanduser().resolve() == resolved_sdvx_path:
+            return target_name
+    return None
+
+
+def update_target_sdvx_path(name: str, sdvx_path: Path) -> TargetRecord:
+    """Update one target to point at a different SDVX folder."""
+
+    state = load_state()
+    if name not in state["targets"]:
+        raise RuntimeConfigError(f"Target '{name}' does not exist.")
+
+    resolved_sdvx_path = sdvx_path.expanduser().resolve()
+    for target_name, record in state["targets"].items():
+        if target_name == name:
+            continue
+        if Path(record["sdvx_path"]).expanduser().resolve() == resolved_sdvx_path:
+            raise RuntimeConfigError(
+                f"Target '{target_name}' already uses this SDVX folder: {resolved_sdvx_path}"
+            )
+
+    state["targets"][name]["sdvx_path"] = str(resolved_sdvx_path)
+    save_state(state)
+    return state["targets"][name]
+
+
 def get_current_target() -> tuple[str, TargetRecord]:
     """Return the selected target name and target record."""
 

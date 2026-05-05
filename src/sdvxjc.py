@@ -5,6 +5,7 @@ from . import ifsprocess
 from .dirty_tracker import clear_dirty_jackets, ensure_dirty_tracker
 from .indexer import analyze_all_song_difficulty
 from .manager import DiffManager
+from .migration import migrate_target
 from .runtime_config import (
     RuntimeConfigError,
     get_current_target,
@@ -116,6 +117,12 @@ def _handle_apply() -> None:
     clear_workspace_music(workspace_path)
 
 
+def _handle_migrate(sdvx_arg: str, backup: bool) -> None:
+    """Migrate the current target into a newer SDVX contents folder."""
+
+    migrate_target(Path(sdvx_arg), backup=backup)
+
+
 def _main() -> None:
     """Parse CLI arguments and dispatch to the selected command."""
 
@@ -129,6 +136,7 @@ def _main() -> None:
     group.add_argument("--current-target", action="store_true")
     group.add_argument("--replace", nargs=3, metavar=("ID", "DIFF", "PIC_PATH"))
     group.add_argument("--apply", action="store_true")
+    group.add_argument("--migrate", metavar="NEW_SDVX_PATH")
 
     parser.add_argument(
         "-n",
@@ -141,12 +149,19 @@ def _main() -> None:
         action="store_true",
         help="force initialization",
     )
+    parser.add_argument(
+        "--backup",
+        action="store_true",
+        help="create backups when overwriting files during migration",
+    )
 
     args = parser.parse_args()
     if args.force and args.init is None:
         parser.error("-f/--force must be used with --init")
     if args.name is not None and args.add_target is None:
         parser.error("-n/--name must be used with --add-target")
+    if args.backup and args.migrate is None:
+        parser.error("--backup must be used with --migrate")
 
     if args.init:
         _handle_init(args.init, args.force)
@@ -174,6 +189,10 @@ def _main() -> None:
 
     if args.apply:
         _handle_apply()
+        return
+
+    if args.migrate:
+        _handle_migrate(args.migrate, args.backup)
 
 
 def main() -> None:
