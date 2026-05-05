@@ -16,7 +16,7 @@ from .runtime_config import (
     use_target,
 )
 from .song_assets import clear_workspace_music, update_song_folders
-from .validators import craft_id, sdvx_folder_checker
+from .validators import craft_difficulty, craft_id, sdvx_folder_checker
 
 
 def _print_target(name: str, sdvx_path: Path | str, workspace_path: Path | str) -> None:
@@ -100,7 +100,7 @@ def _handle_replace(replace_args: list[str]) -> None:
         sdvx_path=sdvx_path,
         data_storage=workspace_path,
     )
-    manager.replace_jacket(diff=int(diff), pic_path=Path(pic_path))
+    manager.replace_jacket(diff=craft_difficulty(diff), pic_path=Path(pic_path))
 
 
 def _handle_apply() -> None:

@@ -20,6 +20,8 @@ sdvxjc --replace ID DIFF path\to\image.png
 sdvxjc --apply
 ```
 
+`DIFF` accepts numeric IDs `1` through `6` or difficulty aliases such as `NOV`, `exh`, `grv`, or `maximum`.
+
 ## Config File
 
 Your external `config.py` should define the global `data_path` that stores all target workspaces:

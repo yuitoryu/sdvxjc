@@ -31,7 +31,7 @@ from .texturelist import (
     rects_equal,
     write_rect,
 )
-from .validators import craft_id, sdvx_folder_checker
+from .validators import craft_difficulty, craft_id, sdvx_folder_checker
 
 
 __all__ = [
@@ -44,6 +44,7 @@ __all__ = [
     "copy_jacket_to_other_difficulty",
     "copy_regular_jacket_to_other_difficulty",
     "copy_t_jacket_to_other_difficulty",
+    "craft_difficulty",
     "craft_id",
     "ensure_song_folder_copied",
     "ensure_song_image_rects_unique",
