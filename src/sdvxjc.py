@@ -2,6 +2,7 @@ import argparse
 from pathlib import Path
 
 from . import ifsprocess
+from .dirty_tracker import clear_dirty_jackets, ensure_dirty_tracker
 from .indexer import analyze_all_song_difficulty
 from .manager import DiffManager
 from .runtime_config import (
@@ -58,6 +59,9 @@ def _handle_add_target(sdvx_arg: str, target_name: str | None) -> None:
 def _handle_use_target(name: str) -> None:
     """Select a saved target by name."""
 
+    targets, _ = list_targets()
+    if name in targets:
+        ensure_dirty_tracker(Path(targets[name]["workspace_path"]))
     target = use_target(name)
     print(f"Current target switched to '{name}'.")
     _print_target(name, target["sdvx_path"], target["workspace_path"])
@@ -89,6 +93,7 @@ def _handle_replace(replace_args: list[str]) -> None:
     """Replace a jacket in the currently selected target workspace."""
 
     sdvx_path, workspace_path = get_current_target_paths()
+    ensure_dirty_tracker(workspace_path)
     song_id, diff, pic_path = replace_args
     manager = DiffManager(
         song_id=craft_id(song_id),
@@ -102,10 +107,12 @@ def _handle_apply() -> None:
     """Apply the current target workspace back to its game folder."""
 
     sdvx_path, workspace_path = get_current_target_paths()
+    ensure_dirty_tracker(workspace_path)
     if not sdvx_folder_checker(sdvx_path):
         raise ValueError("This is not a valid sdvx contents folder!")
     ifsprocess.apply_packed_ifs(workspace_path, sdvx_path)
     update_song_folders(sdvx_path, workspace_path)
+    clear_dirty_jackets(workspace_path)
 
 
 def _main() -> None:

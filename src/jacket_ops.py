@@ -3,6 +3,7 @@ import shutil
 
 from beartype import beartype
 
+from .dirty_tracker import mark_dirty_jacket
 from .imgprocess import resize
 from .song_assets import ensure_song_folder_copied, copy_regular_jacket_to_other_difficulty
 from .texturelist import (
@@ -54,6 +55,7 @@ def copy_t_jacket_to_other_difficulty(
 
     xml_path = root / "texturelist.xml"
     copy_image_node_in_xml(xml_path, source_path, target_path)
+    mark_dirty_jacket(data_storage, ifs_id)
 
 
 @beartype
@@ -86,3 +88,4 @@ def replace_jacket(
     texturelist_path = final_path.parent / "texturelist.xml"
     ensure_unique_image_rect(texturelist_path, final_path.stem)
     ensure_song_image_rects_unique(texturelist_path, song_id)
+    mark_dirty_jacket(data_storage, ifs_id)

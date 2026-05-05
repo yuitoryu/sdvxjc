@@ -5,6 +5,11 @@ from pathlib import Path
 from beartype import beartype
 from tqdm import tqdm
 
+from .dirty_tracker import (
+    ensure_dirty_tracker,
+    initialize_dirty_tracker,
+    read_dirty_jackets,
+)
 from .file_finders import find_jacket_files, find_unpacked_ifs
 from .indexer import analyze_jacket_t_data
 
@@ -86,14 +91,39 @@ def repack_all(unpacked_root: Path, out_path: Path) -> list[Path]:
 
 
 @beartype
+def repack_dirty(
+    unpacked_root: Path,
+    out_path: Path,
+    jacket_ids: list[str],
+) -> list[Path]:
+    """Pack only the dirty unpacked jacket IFS directories."""
+
+    if not jacket_ids:
+        print("No dirty ifs folders to repack.")
+        return []
+
+    packed_files: list[Path] = []
+
+    print("Start repacking dirty ifs folders...")
+    for jacket_id in tqdm(sorted(set(jacket_ids))):
+        folder = unpacked_root / f"s_jacket{jacket_id}_ifs"
+        if not folder.is_dir():
+            raise FileNotFoundError(f"Dirty IFS folder does not exist: {folder}")
+        packed_files.append(pack(folder, out_path))
+    print("Repack completed.")
+    return packed_files
+
+
+@beartype
 def apply_packed_ifs(data_storage: Path, sdvx_path: Path) -> None:
-    """Repack workspace IFS folders and copy them into the game folder."""
+    """Repack dirty workspace IFS folders and copy them into the game folder."""
 
     unpacked_root = data_storage / "ifs_unpacked"
     packed_root = data_storage / "ifs_packed"
     graphics_path = sdvx_path / "data" / "graphics"
 
-    packed_files = repack_all(unpacked_root, packed_root)
+    ensure_dirty_tracker(data_storage)
+    packed_files = repack_dirty(unpacked_root, packed_root, read_dirty_jackets(data_storage))
 
     print("Start copying packed ifs files back to the game folder...")
     for packed_file in tqdm(packed_files):
@@ -119,3 +149,4 @@ def copy_and_analyze_all_ifs(sdvx_path: Path, data_storage: Path) -> None:
     print("Unpack completed.")
 
     analyze_jacket_t_data(data_storage)
+    initialize_dirty_tracker(data_storage)

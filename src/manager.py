@@ -4,6 +4,7 @@ from pathlib import Path
 from beartype import beartype
 
 from .jacket_ops import copy_jacket_to_other_difficulty, replace_jacket
+from .song_assets import ensure_song_folder_copied
 
 
 class DifficultyNotExistError(Exception):
@@ -108,6 +109,60 @@ class DiffManager:
             if jacket.get_pic_id() == -1:
                 jacket.set_pic_id(self.jacket_usage[i - 1].get_pic_id())
 
+    def regular_jacket_exists(self, diff: int) -> bool:
+        """Return whether regular jacket files exist for one difficulty."""
+
+        song_path = ensure_song_folder_copied(self.song_id, self.sdvx_path, self.data_storage)
+        basic_name = f"jk_{self.song_id}_{diff}"
+        return all(
+            (song_path / f"{basic_name}{suffix}").is_file()
+            for suffix in (".png", "_b.png", "_s.png")
+        )
+
+    def transfer_jacket_exists(self, source_diff: int, target_diff: int) -> bool:
+        """Return whether a transfer jacket file exists for one difficulty."""
+
+        ifs_id = self.jacket_t_loc[str(source_diff)]
+        path = (
+            self.data_storage
+            / "ifs_unpacked"
+            / f"s_jacket{ifs_id}_ifs"
+            / "tex"
+            / f"jk_{self.song_id}_{target_diff}_t.png"
+        )
+        return path.is_file()
+
+    def jacket_files_exist(self, source_diff: int, target_diff: int) -> bool:
+        """Return whether all workspace jacket files exist for a difficulty."""
+
+        return self.regular_jacket_exists(target_diff) and self.transfer_jacket_exists(
+            source_diff,
+            target_diff,
+        )
+
+    def materialize_all_jackets(self) -> None:
+        """Copy borrowed jackets so every playable difficulty has workspace files."""
+
+        for jacket in self.jacket_usage:
+            source_diff = jacket.get_pic_id()
+            target_diff = jacket.get_diff_id()
+            if source_diff == target_diff:
+                continue
+            if self.jacket_files_exist(source_diff, target_diff):
+                self.jacket_t_loc[str(target_diff)] = self.jacket_t_loc[str(source_diff)]
+                jacket.set_pic_id(target_diff)
+                continue
+            copy_jacket_to_other_difficulty(
+                source_diff=source_diff,
+                target_diff=target_diff,
+                song_id=self.song_id,
+                jacket_t_loc=self.jacket_t_loc,
+                sdvx_path=self.sdvx_path,
+                data_storage=self.data_storage,
+            )
+            self.jacket_t_loc[str(target_diff)] = self.jacket_t_loc[str(source_diff)]
+            jacket.set_pic_id(target_diff)
+
     def make_independent_jacket(self, jacket: Jacket):
         """Copy a borrowed jacket so a difficulty can be edited independently."""
 
@@ -134,6 +189,7 @@ class DiffManager:
     def replace_jacket(self, diff: int, pic_path: Path):
         """Replace one difficulty's jacket image in the workspace."""
 
+        self.materialize_all_jackets()
         self.ensure_independent_jacket(diff)
         replace_jacket(
             song_id=self.song_id,
